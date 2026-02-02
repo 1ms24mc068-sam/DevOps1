@@ -1,0 +1,4 @@
+Git Plugin
+Pipeline
+Docker Pipeline
+Credential Binding

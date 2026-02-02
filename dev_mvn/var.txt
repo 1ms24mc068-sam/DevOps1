@@ -1,0 +1,41 @@
+#Install Hashicorp gpg 
+#Install Vagrant
+
+vagrant init
+
+#copy paste
+
+vagrant up
+
+#lsmod | grep kvm
+#sudo modprobe -r kvm (all)
+
+#----------------------#
+vagrant ssh manager
+#Manager
+
+sudo apt update -y
+sudo apt install docker.io -y
+sudo usermod -aG docker $USER
+logout
+
+
+docker swarm init --advertise-addr 192.168.56.10
+
+#add worker & move to next steps
+
+docker service create --name devops --replicas 3 -p 7070:7070 chethan2310/devops1:latest
+docker service ps devops
+
+
+
+#------------------------------#
+#worker
+vagrant ssh worker
+
+sudo apt update -y
+sudo apt install docker.io
+sudo usermod -aG docker $USER
+logout
+
+#paste the swarm ID from manager

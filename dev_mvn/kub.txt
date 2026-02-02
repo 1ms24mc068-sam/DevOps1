@@ -1,0 +1,7 @@
+#install minikube
+
+minikube start
+minikube image load chethan2310/devops1:latest
+kubectl create deployment dev1 --image=chethan2310/devops1:latest
+kubectl expose deployment dev1 --type=NodePort --port=7070
+minikube service dev1
