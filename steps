@@ -1,0 +1,525 @@
+echo "# kubernets" >> README.md
+git init
+git add README.mdflask+
+git commit -m "first commit"
+git branch -M main
+git remote add origin https://github.com/1ms24mc022-bot/kubernets.git
+git push -u origin main
+
+
+git remote add origin https://github.com/1ms24mc022-bot/kubernets.git
+git branch -M main
+git push -u origin main
+
+
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@flask_web_app@@@@@@@@@@@@@@@@@@@@
+
+
+1. create a folder my_webapp and move into it
+2. create a 
+
+app.py file -> 
+from flask import Flask
+app=Flask(__name__)
+
+@app.route("/")
+def home():
+	return "Hello from Jenikins Pipeline Demo"
+
+if __name__ == "__main__":
+	app.run(host='0.0.0.0', port=5000)
+--------------------------------------------------
+requirements.txt ->
+flask
+--------------------------------------------------
+Dockerfile ->
+FROM python:3.10-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+EXPOSE 5000
+CMD ["python","app.py"]
+-------------------------------------------------
+
+3. Build the image and run locally as a part of test
+-> docker build -t my_webapp .
+-> docker run -p 5000:5000 my_webapp:latest
+*******************************************************
+INITIALIZE AS A GIT REPO AND PUSH TO GITHUB
+1. -> git init
+-> git branch -m main
+-> git add .
+-> git commit -m "Initial Commit"
+
+2. Create a Github repo
+* Goto Github.com -> New Repo -> name:my_webapp -> create
+* Add Github remote (SSH recommended) -> git remote add origin <ssh-url-of-github-repo>
+
+3. Generate SSH key and add it to github
+* ssh-keygen -t ed25519 -C "<mailId-same-as-github-is-recommended>"
+* cat ~/.ssh/id_ed25519.pub -> copy the key
+* Goto Github.com->settings->ssh and gpg keys -> new ssh key -> paste the key and save
+* test the connection from terminal -> ssh -T git@github.com
+
+4. push the code to github repo
+* git push origin main
+****************************************************
+CONFIGURE DOCKER HUB CREDENTIALS
+1. Login to Docker Hub
+2. create a new repo: my_webapp
+3. Add Docker Hub Credentials to Jenkins
+* Goto jenkins -> Manage Jenkins -> Credentials -> Global -> Add credentials 
+	choose: kind: username and password
+		ID: dockerhub
+		username: <dockerhub_username>
+		password: <dockerhub_password>
+***************************************************
+INSTALL THESE PLUGINS IF NOT ALREADY
+
+1. Goto Jenkins -> Manage Jenkins -> Plugins 
+* Git Plugin
+* Pipeline
+* Docker Pipeline
+* Credential Binding
+2. Restart jenkins -> sudo systemctl restart jenkins 
+***************************************************
+CONFIGURE JENKINS SSH ACCESS TO GITHUB
+1. Jenkins must clone your repo using SSH
+* switch to jenkins user-> sudo -su jenkins
+* Generate SSH key -> ssh-keygen -t ed25519 -C "jenkins@server"
+* display the public key -> cat ~/.ssh/id_ed25519.pub -> copy the key and add to github 
+2. Add Github to known Hosts
+* ssh-keyscan github.com >> ~/.ssh/known_hosts
+* chmod 600 ~/.ssh/known_hosts
+3. Test the connection to github -> ssh -T git@github.com
+
+*******************************************************************
+CREATE A JENKINS FILE AND ADD TO YOUR GITHUB REPO
+1. create a 'jenkinsfile' ->
+pipeline {
+	agent any
+	environment {
+		DOCKERHUB_CRED=credentials('dockerhub')
+		IMAGE_NAME="<docker_hub_username>/<docker_hub_repo_name>"
+	}
+	
+	stages {
+		stage('checkout') {
+			steps {
+				git url:'<github_repo_ssh_url>', branch:'main' 
+			}
+		}
+		
+		stage('Build Docker Image') {
+			steps {
+				script {
+					dockerImage=docker.build("${IMAGE_NAME}:latest")
+				}
+			}
+		}
+		
+		stage('Push to DockerHub') {
+			steps {
+				script {
+					docker.withRegistry('https://index.docker.io/v1/','dockerhub') {
+						dockerImage.push()
+					}
+				}
+			}
+		}
+	}
+	
+	post {
+		success {
+			echo "Pipeline Successful"
+		}
+		failure {
+			echo "Pipeline Failed"
+		}
+		always {
+			echo "Cleaning Up WorkSpace"
+			deleteDir()
+		}
+	}
+}
+
+2. add, commit and push to githun repo
+	* git add .
+	* git commit -m "Added Jenkins File"
+	* git push origin main
+
+*************************************************************************
+ADD JENKINS TO DOCKER GROUP
+1. This is needed because jenkins need permission to execute docker commands
+-> sudo usermod -aG docker jenkins
+-> sudo systemctl restart docker
+-> sudo systemctl restart jenkins
+
+
+*************************************************************************
+CREATE JENKINS PIPELINE JOB
+1. Goto Jenkins -> New Item -> Pipeline -> OK
+2. Configure Pipeline -> * pipeline -> choose from SCM
+			 * SCM -> Git
+			 * Repo Url: <ssh_url_of_github_repo>
+			 * script path: jenkinsfile
+	Save -> Build Now
+
+**************************************************************************
+VERIFY IN DOCKERHUB
+* Goto DockerHub Repo and look for the image pushed.
+
+
+
+
+
+
+
+
+
+-----------------------------------------------------------my_node_app-------------------------------------------
+ Node.js Simple App CI/CD Pipeline Guide
+We are going to create a Node.js application using a simple HTTP server and then using Git, Jenkins, and Docker, we will dockerize the project and push the image to Docker Hub. This entire process will be automated using the Jenkins Pipeline script.
+
+----------------------------------------------------------------------
+CREATE A SIMPLE NODE.JS PROJECT
+1. Create a folder:
+mkdir my_node_app
+cd my_node_app
+
+2. Create server.js:
+const http = require('http');
+const server = http.createServer((req, res) => {
+    res.end("Hello from Node App using Jenkins Pipeline!");
+});
+server.listen(3000, () => {
+    console.log("Server running on port 3000");
+});
+
+3. Initialize npm:
+npm init -y
+
+4. Update package.json if below is not present in it:
+"scripts": { "start": "node server.js" }
+
+----------------------------------------------------------------------
+CREATE A DOCKERFILE AND TEST LOCALLY
+1. Create Dockerfile:
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+EXPOSE 3000
+CMD ["npm","start"]
+
+2. Build Image:
+docker build -t my_node_app .
+
+3. Test Container:
+docker run -p 10000:3000 my_node_app:latest
+
+4. Visit localhost:10000
+
+----------------------------------------------------------------------
+CREATE A GIT REPO AND PUSH THE CODE
+1. open the node project folder
+2. * git init
+   * git branch -m main
+   * git add .
+   * git commit -m "Initial Commit"
+3. Goto github.com -> create repo -> name: my_node_app
+4. copy the ssh url of the repo and add it into the local repo -> git remote add origin <url>
+5. SSH KEY GEN AND ADDING IT TO GITHUB
+ * ssh-keygen -t ed25519 -C "<your_mail_id>"
+ * cat ~/.ssh/id_ed25519.pub (copy this key)
+ * goto github.com -> settings -> ssh and gpg keys -> add the key
+6. push the code to github -> git push origin main
+
+----------------------------------------------------------------------
+CONFIGURE DOCKER HUB CREDENTIALS
+1. Login to Docker Hub
+2. create a new repo: my_node_app
+3. Add Docker Hub Credentials to Jenkins
+* Goto jenkins -> Manage Jenkins -> Credentials -> Global -> Add credentials 
+	choose: kind: username and password
+		ID: dockerhub
+		username: <dockerhub_username>
+		password: <dockerhub_password>
+
+----------------------------------------------------------------------
+INSTALL THESE PLUGINS IF NOT ALREADY
+
+1. Goto Jenkins -> Manage Jenkins -> Plugins 
+* Git Plugin
+* Pipeline
+* Docker Pipeline
+* Credential Binding
+2. Restart jenkins -> sudo systemctl restart jenkins 
+
+----------------------------------------------------------------------
+CONFIGURE JENKINS SSH ACCESS TO GITHUB
+1. Jenkins must clone your repo using SSH
+* switch to jenkins user-> sudo -su jenkins
+* Generate SSH key -> ssh-keygen -t ed25519 -C "jenkins@server"
+* display the public key -> cat ~/.ssh/id_ed25519.pub -> copy the key and add to github 
+2. Add Github to known Hosts
+* ssh-keyscan github.com >> ~/.ssh/known_hosts
+* chmod 600 ~/.ssh/known_hosts
+3. Test the connection to github -> ssh -T git@github.com
+
+----------------------------------------------------------------------
+CREATE A JENKINS FILE AND ADD TO YOUR GITHUB REPO
+1. open the  project folder
+2. create a "jenkinsfile" and add the below content
+
+pipeline {
+    agent any
+    environment {
+        DOCKERHUB_CRED = credentials('dockerhub')
+        IMAGE_NAME = "<dockerhub_username>/my_node_app"
+    }
+    stages {
+        stage('checkout') {
+            steps { git url: '<github_repo_ssh_url>', branch: 'main' }
+        }
+        stage('Build Docker Image') {
+            steps {
+                script { dockerImage = docker.build("${IMAGE_NAME}:latest") }
+            }
+        }
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub') {
+                        dockerImage.push()
+                    }
+                }
+            }
+        }
+    }
+    post {
+        success { echo "Pipeline Successful" }
+        failure { echo "Pipeline Failed" }
+        always { deleteDir() }
+    }
+}
+
+git add .
+git commit -m "Added jenkinsfile"
+git push origin main
+
+----------------------------------------------------------------------
+ADD JENKINS TO DOCKER GROUP
+1. This is needed because jenkins need permission to execute docker commands
+-> sudo usermod -aG docker jenkins
+-> sudo systemctl restart docker
+-> sudo systemctl restart jenkins
+
+----------------------------------------------------------------------
+CREATE JENKINS PIPELINE JOB
+1. Goto Jenkins -> New Item -> Pipeline -> OK
+2. Configure Pipeline -> * pipeline -> choose from SCM
+			 * SCM -> Git
+			 * Repo Url: <ssh_url_of_github_repo>
+			 * script path: jenkinsfile
+	Save -> Build Now
+
+----------------------------------------------------------------------
+VERIFY IN DOCKERHUB
+* Goto DockerHub Repo and look for the image pushed.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-------------------------------------------maven.app------------------------------------------------
+We are going to create a maven project(spring boot) using spring initializr and then using git, jenkins, and docker we are going to docekrize the the project and will push the image to docker hub. This process will be automated using the pipeline script.
+
+**********************************************************************
+CREATE A SPRING BOOT PROJECT USING SPRING INITIALIZR
+1. Goto https://start.spring.io/
+2. choose 
+	* project type as : maven
+	* Language : Java
+	* Spring Boot Version: any latest version
+	* give an name for Artifact: my_maven_app
+	* Packaging: Jar
+	* Configuration: Properties
+	* Java version: 21 
+3. Click on Dependencies and search "Spring Web" and choose it.
+4. Click Generate, so the zip file will be downloaded.
+
+*************************************************************************
+UNZIP THE MAVEN PROJECT AND ADD A CONTROLLER FILE
+1. extract the zip file into the folder where you wish to work
+2. open the folder and goto src/main/java/com/example/my_maven_app/
+3. create a new File "HomeController.java" and add the below content:
+	package com.example.my_maven_app;
+
+	import org.springframework.web.bind.annotation.GetMapping;
+	import org.springframework.web.bind.annotation.RestController;
+
+	@RestController
+	public class HomeController {
+
+    		@GetMapping("/")
+    		public String home() {
+        		return "Hello from Spring Boot Maven App!";
+    		}
+	}
+***************************************************************************
+CREATE A DOCKERFILE AND TEST THE PROJECT LOCALLY
+1. move to the directory of where the src pom.xml file exist(that is just open the spring boot project folder)
+2. Install maven -> sudo apt install maven
+3. build the project -> mvn clean package -DskipTests
+4. create Dockerfile as below:
+	FROM eclipse-temurin:21-jdk-alpine
+	WORKDIR /app
+	COPY target/*.jar app.jar
+	EXPOSE 8080
+	CMD ["java","-jar","app.jar"]
+	
+	(ensure that the java version in first line should be same as you have chosen in spring initializr) 
+4. Build the Image -> docker build -t my_maven_app .
+5. Test locally -> docker run -p 10000:8080 my_maven_app:latest (the spring boot app by default runs in 8080 port, but as we will have jenkins in 8080 of out local system, we are mapping it to 10000 port)
+6. open "localhost:10000" in browser and you'll see "Hello from Spring Boot Maven App!"
+**************************************************************************
+CREATE A GIT REPO AND PUSH THE CODE
+1. open the spring boot project folder
+2. * git init
+   * git branch -m main
+   * git add .
+   * git commit -m "Initial Commit"
+3. Goto github.com -> create repo -> name: my_maven_app
+4. copy the ssh url of the repo and add it into the local repo -> git remote add origin <url>
+5. SSH KEY GEN AND ADDING IT TO GITHUB
+ * ssh-keygen -t ed25519 -C "<your_mail_id>"
+ * cat ~/.ssh/id_ed25519.pub (copy this key)
+ * goto github.com -> settings -> ssh and gpg keys -> add the key
+6. push the code to github -> git push origin main
+**************************************************************************
+CONFIGURE DOCKER HUB CREDENTIALS
+1. Login to Docker Hub
+2. create a new repo: my_maven_app
+3. Add Docker Hub Credentials to Jenkins
+* Goto jenkins -> Manage Jenkins -> Credentials -> Global -> Add credentials 
+	choose: kind: username and password
+		ID: dockerhub
+		username: <dockerhub_username>
+		password: <dockerhub_password>
+***************************************************************************
+INSTALL THESE PLUGINS IF NOT ALREADY
+
+1. Goto Jenkins -> Manage Jenkins -> Plugins 
+* Git Plugin
+* Pipeline
+* Docker Pipeline
+* Credential Binding
+2. Restart jenkins -> sudo systemctl restart jenkins 
+****************************************************************************
+CONFIGURE JENKINS SSH ACCESS TO GITHUB
+1. Jenkins must clone your repo using SSH
+* switch to jenkins user-> sudo -su jenkins
+* Generate SSH key -> ssh-keygen -t ed25519 -C "jenkins@server"
+* display the public key -> cat ~/.ssh/id_ed25519.pub -> copy the key and add to github 
+2. Add Github to known Hosts
+* ssh-keyscan github.com >> ~/.ssh/known_hosts
+* chmod 600 ~/.ssh/known_hosts
+3. Test the connection to github -> ssh -T git@github.com
+*****************************************************************************
+CREATE A JENKINS FILE AND ADD TO YOUR GITHUB REPO
+1. open the spring boot project folder
+2. create a "jenkinsfile" and add the below content
+
+pipeline {
+	agent any
+	
+	environment {
+		DOCKERHUB_CRED=credentials('dockerhub')
+		IMAGE_NAME="<docker_hub_username>/<docker_hub_repo_name>"
+	}
+	
+	stages {
+		stage('checkout') {
+			steps {
+				git url:'<github_repo_ssh_url>', branch:'main'
+			}
+		}
+
+		stage('Build Maven Project') {
+			steps {
+				sh "mvn clean package -DskipTests"
+			}
+		}
+		
+		stage('Build Docker Image') {
+            		steps {
+                		script {
+                    			dockerImage = docker.build("${IMAGE_NAME}:latest")
+                		}
+            		}
+        	}
+
+		stage('Push Docker Image'){
+			steps {
+				script {
+					docker.withRegistry('https://index.docker.io/v1/','dockerhub'){
+						dockerImage.push()
+					}
+				}
+			}
+		}	
+	}
+	
+	post {
+		success {
+			echo "Pipeline Successful"
+		}
+		failure {
+			echo "Pipeline Failure"
+		}
+		always {
+			echo "Cleaning workspace"
+			deleteDir()
+		}
+	}
+
+}
+
+save the file.
+3. add, commit and push the changes to github repo
+	* git add .
+	* git commit -m "Added jenkinsfile"
+	* git push origin main
+****************************************************************
+ADD JENKINS TO DOCKER GROUP
+1. This is needed because jenkins need permission to execute docker commands
+-> sudo usermod -aG docker jenkins
+-> sudo systemctl restart docker
+-> sudo systemctl restart jenkins
+*****************************************************************
+CREATE JENKINS PIPELINE JOB
+1. Goto Jenkins -> New Item -> Pipeline -> OK
+2. Configure Pipeline -> * pipeline -> choose from SCM
+			 * SCM -> Git
+			 * Repo Url: <ssh_url_of_github_repo>
+			 * script path: jenkinsfile
+	Save -> Build Now
+**************************************************************************
+VERIFY IN DOCKERHUB
+* Goto DockerHub Repo and look for the image pushed.
